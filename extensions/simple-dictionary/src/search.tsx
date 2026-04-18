@@ -81,15 +81,6 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
   }, [language, word]);
 
   useEffect((): void => {
-    const checkFavorites: () => Promise<void> = async (): Promise<void> => {
-      const favs: Record<string, boolean> = await Favorite.existMultiple(groupedEntries, word);
-      setFavorites({ ...favs });
-    };
-
-    if (Object.keys(groupedEntries).length) checkFavorites();
-  }, [groupedEntries, languageFull, word]);
-
-  useEffect((): void => {
     if (!props.arguments.word && props.fallbackText) {
       clearSearchBar();
     }
@@ -110,6 +101,15 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
 
     return filtered;
   }, [groupedEntries, searchText]);
+
+  useEffect((): void => {
+    const checkFavorites: () => Promise<void> = async (): Promise<void> => {
+      const favs: Record<string, boolean> = await Favorite.existMultiple(filteredEntries, word);
+      setFavorites({ ...favs });
+    };
+
+    if (Object.keys(filteredEntries).length) checkFavorites();
+  }, [filteredEntries, languageFull, word]);
 
   if (!language) {
     return (
