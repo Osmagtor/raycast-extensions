@@ -1,6 +1,6 @@
 # Simple Dictionary Changelog
 
-## [Fallback Command Compatibility] - 2026-04-18
+## [Fallback Command Compatibility] - {PR_MERGE_DATE}
 
 - The `Search Word` command can now be used as a fallback command.
 
