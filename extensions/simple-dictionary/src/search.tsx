@@ -96,11 +96,9 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
   }, []);
 
   const filteredEntries: GroupedEntry = useMemo((): GroupedEntry => {
-    
     const filtered: GroupedEntry = {};
 
     Object.entries(groupedEntries).forEach(([partOfSpeech, entry]: [string, GroupedEntry[string]]): void => {
-
       const filteredSenses: Sense[] = entry.senses.filter((sense: Sense): boolean =>
         sense.definition.toLowerCase().includes(searchText.toLowerCase()),
       );
@@ -138,119 +136,134 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
       {!Object.keys(filteredEntries).length ? (
         <List.EmptyView title="No definitions found" />
       ) : (
-        Object.entries(filteredEntries).map(([partOfSpeech, entry]: [string, GroupedEntry[string]], i: number): React.ReactNode => {
-          const color: Color = colors[i % colors.length];
+        Object.entries(filteredEntries).map(
+          ([partOfSpeech, entry]: [string, GroupedEntry[string]], i: number): React.ReactNode => {
+            const color: Color = colors[i % colors.length];
 
-          return (
-            <List.Section key={partOfSpeech} title={`${Dictionary.capitalize(partOfSpeech)} (${entry.senses.length})`}>
-              {entry.senses.map((sense: Sense, j: number): React.ReactNode => {
-                const favKey: string = `${partOfSpeech}-${j}`;
-                const isFavorite: boolean = favorites[favKey] || false;
+            return (
+              <List.Section
+                key={partOfSpeech}
+                title={`${Dictionary.capitalize(partOfSpeech)} (${entry.senses.length})`}
+              >
+                {entry.senses.map((sense: Sense, j: number): React.ReactNode => {
+                  const favKey: string = `${partOfSpeech}-${j}`;
+                  const isFavorite: boolean = favorites[favKey] || false;
 
-                return (
-                  <List.Item
-                    key={`${word}-${partOfSpeech}-${j}`}
-                    title={""}
-                    accessories={isFavorite ? [{ icon: Icon.Star }] : []}
-                    icon={{
-                      source: Icon.Dot,
-                      tintColor: color,
-                    }}
-                    subtitle={sense.definition}
-                    detail={<List.Item.Detail markdown={sense.markdown || "No details available."} />}
-                    actions={
-                      <ActionPanel>
-                        <Action
-                          title="Open in Browser"
-                          icon={Icon.Globe}
-                          onAction={(): void => {
-                            if (entryURL) open(entryURL);
-                          }}
-                        />
-                        <Action
-                          title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                          icon={isFavorite ? Icon.StarDisabled : Icon.Star}
-                          style={isFavorite ? Action.Style.Destructive : Action.Style.Regular}
-                          shortcut={isFavorite ? Keyboard.Shortcut.Common.Remove : Keyboard.Shortcut.Common.Pin}
-                          onAction={async (): Promise<void> => {
-                            if (!isFavorite) {
-                              const success: boolean = await Favorite.addEntry(
-                                languageFull,
-                                word,
-                                sense.markdown || "",
-                                entryURL || "",
-                                j,
-                                partOfSpeech,
-                              );
-                              if (success) {
-                                await showToast({
-                                  style: Toast.Style.Success,
-                                  title: "Added to Favorites",
-                                  message: `"${word}" (${Dictionary.capitalize(languageFull)}) has been added to your favorites`,
-                                });
-                                setFavorites((prev: Record<string, boolean>): Record<string, boolean> => ({ ...prev, [favKey]: true }));
-                              } else {
-                                await showToast({
-                                  style: Toast.Style.Failure,
-                                  title: "Failed to add to Favorites",
-                                  message: `"${word}" (${Dictionary.capitalize(languageFull)}) is already in your favorites`,
-                                });
-                              }
-                            } else {
-                              const options: Alert.Options = {
-                                title: "Remove from Favorites",
-                                message: `"${word}" (${Dictionary.capitalize(languageFull)}) will be removed from your favorites`,
-                                primaryAction: {
-                                  title: "Delete",
-                                  style: Alert.ActionStyle.Destructive,
-                                  onAction: async (): Promise<void> => {
-                                    await showToast({
-                                      style: Toast.Style.Success,
-                                      title: "Removed from Favorites",
-                                      message: `"${word}" (${Dictionary.capitalize(languageFull)}) has been removed from your favorites`,
-                                    });
-                                  },
-                                },
-                              };
-                              if (await confirmAlert(options)) {
-                                const success: boolean = await Favorite.removeEntry(
+                  return (
+                    <List.Item
+                      key={`${word}-${partOfSpeech}-${j}`}
+                      title={""}
+                      accessories={isFavorite ? [{ icon: Icon.Star }] : []}
+                      icon={{
+                        source: Icon.Dot,
+                        tintColor: color,
+                      }}
+                      subtitle={sense.definition}
+                      detail={<List.Item.Detail markdown={sense.markdown || "No details available."} />}
+                      actions={
+                        <ActionPanel>
+                          <Action
+                            title="Open in Browser"
+                            icon={Icon.Globe}
+                            onAction={(): void => {
+                              if (entryURL) open(entryURL);
+                            }}
+                          />
+                          <Action
+                            title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                            icon={isFavorite ? Icon.StarDisabled : Icon.Star}
+                            style={isFavorite ? Action.Style.Destructive : Action.Style.Regular}
+                            shortcut={isFavorite ? Keyboard.Shortcut.Common.Remove : Keyboard.Shortcut.Common.Pin}
+                            onAction={async (): Promise<void> => {
+                              if (!isFavorite) {
+                                const success: boolean = await Favorite.addEntry(
                                   languageFull,
                                   word,
+                                  sense.markdown || "",
+                                  entryURL || "",
                                   j,
                                   partOfSpeech,
                                 );
                                 if (success) {
-                                  setFavorites((prev: Record<string, boolean>): Record<string, boolean> => ({ ...prev, [favKey]: false }));
+                                  await showToast({
+                                    style: Toast.Style.Success,
+                                    title: "Added to Favorites",
+                                    message: `"${word}" (${Dictionary.capitalize(languageFull)}) has been added to your favorites`,
+                                  });
+                                  setFavorites(
+                                    (prev: Record<string, boolean>): Record<string, boolean> => ({
+                                      ...prev,
+                                      [favKey]: true,
+                                    }),
+                                  );
                                 } else {
                                   await showToast({
                                     style: Toast.Style.Failure,
-                                    title: "Failed to remove from Favorites",
-                                    message: `"${word}" (${Dictionary.capitalize(languageFull)}) is not in your favorites`,
+                                    title: "Failed to add to Favorites",
+                                    message: `"${word}" (${Dictionary.capitalize(languageFull)}) is already in your favorites`,
                                   });
                                 }
+                              } else {
+                                const options: Alert.Options = {
+                                  title: "Remove from Favorites",
+                                  message: `"${word}" (${Dictionary.capitalize(languageFull)}) will be removed from your favorites`,
+                                  primaryAction: {
+                                    title: "Delete",
+                                    style: Alert.ActionStyle.Destructive,
+                                    onAction: async (): Promise<void> => {
+                                      await showToast({
+                                        style: Toast.Style.Success,
+                                        title: "Removed from Favorites",
+                                        message: `"${word}" (${Dictionary.capitalize(languageFull)}) has been removed from your favorites`,
+                                      });
+                                    },
+                                  },
+                                };
+                                if (await confirmAlert(options)) {
+                                  const success: boolean = await Favorite.removeEntry(
+                                    languageFull,
+                                    word,
+                                    j,
+                                    partOfSpeech,
+                                  );
+                                  if (success) {
+                                    setFavorites(
+                                      (prev: Record<string, boolean>): Record<string, boolean> => ({
+                                        ...prev,
+                                        [favKey]: false,
+                                      }),
+                                    );
+                                  } else {
+                                    await showToast({
+                                      style: Toast.Style.Failure,
+                                      title: "Failed to remove from Favorites",
+                                      message: `"${word}" (${Dictionary.capitalize(languageFull)}) is not in your favorites`,
+                                    });
+                                  }
+                                }
                               }
-                            }
-                          }}
-                        />
-                        <Action
-                          title="Copy to Clipboard"
-                          icon={Icon.Clipboard}
-                          shortcut={Keyboard.Shortcut.Common.Copy}
-                          onAction={(): void => {
-                            Clipboard.copy(sense.definition);
-                            showHUD(
-                              `The definitions for "${word}" (${Dictionary.capitalize(languageFull)}) have been copied to clipboard`,
-                            );
-                          }}
-                        />
-                      </ActionPanel>
-                    }
-                  />
-                );
-              })}
-            </List.Section>
-          );
-        })
+                            }}
+                          />
+                          <Action
+                            title="Copy to Clipboard"
+                            icon={Icon.Clipboard}
+                            shortcut={Keyboard.Shortcut.Common.Copy}
+                            onAction={(): void => {
+                              Clipboard.copy(sense.definition);
+                              showHUD(
+                                `The definitions for "${word}" (${Dictionary.capitalize(languageFull)}) have been copied to clipboard`,
+                              );
+                            }}
+                          />
+                        </ActionPanel>
+                      }
+                    />
+                  );
+                })}
+              </List.Section>
+            );
+          },
+        )
       )}
     </List>
   );
