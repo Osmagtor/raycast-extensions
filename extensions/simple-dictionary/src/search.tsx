@@ -16,8 +16,9 @@ import {
   getPreferenceValues,
   Detail,
   openCommandPreferences,
+  clearSearchBar,
 } from "@raycast/api";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dictionary, { GroupedEntry, Sense } from "./classes/dictionary";
 import Favorite from "./classes/favorite";
 import History from "./classes/history";
@@ -28,7 +29,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
   const colors: Color[] = [Color.Blue, Color.Green, Color.Magenta, Color.Orange, Color.Purple, Color.Red, Color.Yellow];
 
   const language: string = props.arguments.language || getPreferenceValues<Preferences.Search>().default_language;
-  const word: string = props.arguments.word;
+  const word: string = props.arguments.word || props.fallbackText || "";
 
   const [groupedEntries, setGroupedEntries] = useState<GroupedEntry>({});
   const [searchText, setSearchText] = useState("");
@@ -37,7 +38,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<Record<string, boolean>>({}); // key: `${partOfSpeech}-${j}`
 
-  useEffect(() => {
+  useEffect((): void => {
     d = new Dictionary(language, word);
     d.getEntry()
       .then(async (ge: GroupedEntry | undefined) => {
@@ -68,7 +69,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
           });
         }
       })
-      .catch(() => {
+      .catch((): void => {
         setLoading(false);
         setGroupedEntries({});
         showToast({
@@ -79,14 +80,38 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
       });
   }, [language, word]);
 
-  useEffect(() => {
-    const checkFavorites = async () => {
+  useEffect((): void => {
+    const checkFavorites: () => Promise<void> = async (): Promise<void> => {
       const favs: Record<string, boolean> = await Favorite.existMultiple(groupedEntries, word);
       setFavorites({ ...favs });
     };
 
     if (Object.keys(groupedEntries).length) checkFavorites();
   }, [groupedEntries, languageFull, word]);
+
+  useEffect((): void => {
+    if (!props.arguments.word && props.fallbackText) {
+      clearSearchBar();
+    }
+  }, []);
+
+  const filteredEntries: GroupedEntry = useMemo((): GroupedEntry => {
+    
+    const filtered: GroupedEntry = {};
+
+    Object.entries(groupedEntries).forEach(([partOfSpeech, entry]: [string, GroupedEntry[string]]): void => {
+
+      const filteredSenses: Sense[] = entry.senses.filter((sense: Sense): boolean =>
+        sense.definition.toLowerCase().includes(searchText.toLowerCase()),
+      );
+
+      if (filteredSenses.length) {
+        filtered[partOfSpeech] = { ...entry, senses: filteredSenses };
+      }
+    });
+
+    return filtered;
+  }, [groupedEntries, searchText]);
 
   if (!language) {
     return (
@@ -107,20 +132,20 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
       searchText={searchText}
       onSearchTextChange={setSearchText}
       searchBarPlaceholder={loading ? "Loading. Please wait..." : "Filter by definition..."}
-      filtering={true}
+      filtering={false}
       isShowingDetail={true}
     >
-      {!Object.keys(groupedEntries).length ? (
+      {!Object.keys(filteredEntries).length ? (
         <List.EmptyView title="No definitions found" />
       ) : (
-        Object.entries(groupedEntries).map(([partOfSpeech, entry], i: number) => {
+        Object.entries(filteredEntries).map(([partOfSpeech, entry]: [string, GroupedEntry[string]], i: number): React.ReactNode => {
           const color: Color = colors[i % colors.length];
 
           return (
             <List.Section key={partOfSpeech} title={`${Dictionary.capitalize(partOfSpeech)} (${entry.senses.length})`}>
-              {entry.senses.map((sense: Sense, j: number) => {
-                const favKey = `${partOfSpeech}-${j}`;
-                const isFavorite = favorites[favKey] || false;
+              {entry.senses.map((sense: Sense, j: number): React.ReactNode => {
+                const favKey: string = `${partOfSpeech}-${j}`;
+                const isFavorite: boolean = favorites[favKey] || false;
 
                 return (
                   <List.Item
@@ -163,7 +188,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
                                   title: "Added to Favorites",
                                   message: `"${word}" (${Dictionary.capitalize(languageFull)}) has been added to your favorites`,
                                 });
-                                setFavorites((prev) => ({ ...prev, [favKey]: true }));
+                                setFavorites((prev: Record<string, boolean>): Record<string, boolean> => ({ ...prev, [favKey]: true }));
                               } else {
                                 await showToast({
                                   style: Toast.Style.Failure,
@@ -195,7 +220,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Search
                                   partOfSpeech,
                                 );
                                 if (success) {
-                                  setFavorites((prev) => ({ ...prev, [favKey]: false }));
+                                  setFavorites((prev: Record<string, boolean>): Record<string, boolean> => ({ ...prev, [favKey]: false }));
                                 } else {
                                   await showToast({
                                     style: Toast.Style.Failure,
